@@ -1,7 +1,7 @@
 rules:
   - type: RULE-SET
     url: https://raw.githubusercontent.com/privacy-protection-tools/anti-AD/master/anti-ad-clash.yaml
-    policy: REJECT
+    policy: REJECT-200
   - type: GEOIP
     country: CN
     policy: DIRECT
