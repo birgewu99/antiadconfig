@@ -1,11 +1,5 @@
 rules:
   - type: RULE-SET
-    url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/reject.txt
-    policy: REJECT
-  - type: RULE-SET
-    url: https://raw.githubusercontent.com/217heidai/adblockfilters/main/rules/adblockclash.list
-    policy: REJECT
-  - type: RULE-SET
     url: https://raw.githubusercontent.com/privacy-protection-tools/anti-AD/master/anti-ad-clash.yaml
     policy: REJECT
   - type: GEOIP
