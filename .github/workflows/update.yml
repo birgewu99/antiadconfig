@@ -1,10 +1,5 @@
 name: Update SR Rules
 
-# 给 workflow 必需的权限（尽量允许写 contents 以便创建 PR / 写 artifact）
-permissions:
-  contents: write
-  pull-requests: write
-
 on:
   schedule:
     - cron: '0 0 * * *'
@@ -13,84 +8,46 @@ on:
 jobs:
   update-rules:
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          persist-credentials: true
-          fetch-depth: 0
-
+      
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pyyaml requests
-
-      - name: Ensure output dir exists
-        run: mkdir -p output
-
-      - name: Generate SR rules (run script, unbuffered)
-        run: python -u gen_rules.py
-
-      - name: Show generated file (debug)
+      
+      - name: Generate SR rules
+        run: python gen_rules.py
+      
+      - name: Check output file
         run: |
-          echo "=== List output dir ==="
-          ls -la output || true
           if [ -f output/sr_rules.conf ]; then
-            size=$(wc -c < output/sr_rules.conf || echo 0)
-            lines=$(wc -l < output/sr_rules.conf || echo 0)
+            size=$(wc -c < output/sr_rules.conf)
+            lines=$(wc -l < output/sr_rules.conf)
             echo "✓ Output file generated: $size bytes, $lines lines"
-            echo "----- begin sr_rules.conf (first 200 lines) -----"
-            sed -n '1,200p' output/sr_rules.conf || true
-            echo "----- end sr_rules.conf -----"
           else
             echo "❌ Output file not generated!"
             exit 1
           fi
-
-      - name: Upload sr_rules.conf artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sr_rules
-          path: output/sr_rules.conf
-
-      # If you want to directly push to the branch (NOT recommended when branch protection forbids),
-      # uncomment the PAT push block below and set secret PAT_PUSH in repo secrets.
-      #
-      # - name: Commit and push changes (using PAT)
-      #   if: always()
-      #   env:
-      #     PAT: ${{ secrets.PAT_PUSH }}
-      #   run: |
-      #     set -eux
-      #     git config --local user.email "action@github.com"
-      #     git config --local user.name "GitHub Action"
-      #     git add output/sr_rules.conf
-      #     if git diff --cached --quiet; then
-      #       echo "No changes detected, skipping commit and push"
-      #       exit 0
-      #     fi
-      #     git commit -m "Auto: Update SR rules at $(date -u +'%Y-%m-%d %H:%M:%S')"
-      #     BRANCH="${GITHUB_REF#refs/heads/}"
-      #     git push "https://x-access-token:${PAT}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${BRANCH}"
-
-      - name: Create a Pull Request with changes (safe, recommended)
-        # uses the create-pull-request action which will create a branch and PR if there are changes
-        uses: peter-evans/create-pull-request@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "Auto: Update SR rules at $(date -u +'%Y-%m-%d %H:%M:%S')"
-          title: "Auto: Update SR rules"
-          body: |
-            This PR was created automatically by workflow run ${{ github.run_id }}.
-            Please review the updated output/sr_rules.conf.
-          branch: "auto/update-sr-rules-${{ github.run_id }}"
-          labels: automated
-          paths: |
-            output/sr_rules.conf
+      
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add output/sr_rules.conf
+          # If there are staged changes, commit and push; otherwise skip
+          if git diff --cached --quiet; then
+            echo "No changes detected, skipping commit and push"
+          else
+            git commit -m "Auto: Update SR rules at $(date +'%Y-%m-%d %H:%M:%S')"
+            git push
+          fi
