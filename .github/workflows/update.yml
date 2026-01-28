@@ -8,46 +8,59 @@ on:
 jobs:
   update-rules:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pyyaml requests
-      
+
       - name: Generate SR rules
-        run: python gen_rules.py
-      
-      - name: Check output file
+        # 使用 -u 让 python 输出不缓存，便于实时日志
+        run: python -u gen_rules.py
+
+      - name: Show generated file (debug)
         run: |
+          echo "=== List output dir ==="
+          ls -la output || true
           if [ -f output/sr_rules.conf ]; then
             size=$(wc -c < output/sr_rules.conf)
             lines=$(wc -l < output/sr_rules.conf)
             echo "✓ Output file generated: $size bytes, $lines lines"
+            echo "----- begin sr_rules.conf (first 200 lines) -----"
+            sed -n '1,200p' output/sr_rules.conf || true
+            echo "----- end sr_rules.conf -----"
           else
             echo "❌ Output file not generated!"
+            # 上传空文件以便后续分析（避免 silent fail）
             exit 1
           fi
-      
+
+      - name: Upload sr_rules.conf artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sr_rules
+          path: output/sr_rules.conf
+
       - name: Commit and push changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add output/sr_rules.conf
-          # Only commit and push if there are changes
-          if ! git diff --quiet && git diff --cached --quiet; then
+          # 如果有 staged 更改则提交并推送，否则跳过
+          if git diff --cached --quiet; then
+            echo "No changes detected, skipping commit and push"
+          else
             git commit -m "Auto: Update SR rules at $(date +'%Y-%m-%d %H:%M:%S')"
             git push
-          else
-            echo "No changes detected, skipping commit and push"
           fi
