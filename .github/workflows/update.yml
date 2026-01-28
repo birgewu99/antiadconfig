@@ -28,6 +28,17 @@ jobs:
       - name: Generate SR rules
         run: python gen_rules.py
       
+      - name: Check output file
+        run: |
+          if [ -f output/sr_rules.conf ]; then
+            size=$(wc -c < output/sr_rules.conf)
+            lines=$(wc -l < output/sr_rules.conf)
+            echo "✓ Output file generated: $size bytes, $lines lines"
+          else
+            echo "❌ Output file not generated!"
+            exit 1
+          fi
+      
       - name: Commit and push changes
         run: |
           git config --local user.email "action@github.com"
