@@ -3,6 +3,8 @@ import yaml
 import requests
 from datetime import datetime
 import os
+import sys
+import traceback
 
 # Header content for SR config
 HEADER = """# Shadowrocket: {datetime}
@@ -53,15 +55,22 @@ localhost = 127.0.0.1
 """
 
 def fetch_rules(url):
-    """Fetch rules from remote URL"""
+    """Fetch rules from remote URL and return filtered lines"""
     try:
-        print(f"  Fetching from {url}...")
+        print(f"  Fetching from {url} ...")
         response = requests.get(url, timeout=15)
+        status = response.status_code
+        text_len = len(response.text) if response.text is not None else 0
+        print(f"    HTTP {status}, {text_len} bytes received")
         response.raise_for_status()
-        lines = response.text.strip().split('\n')
+        # Show a short preview for debugging
+        preview = (response.text[:300].replace('\n', '\\n')) if response.text else ''
+        if preview:
+            print(f"    Preview: {preview}...")
+        lines = response.text.strip().split('\n') if response.text else []
         # Filter out comments and empty lines
         filtered = [line.strip() for line in lines if line.strip() and not line.strip().startswith('#')]
-        print(f"  Successfully fetched {len(filtered)} rules")
+        print(f"    Successfully fetched {len(filtered)} rules (filtered)")
         return filtered
     except requests.exceptions.Timeout:
         print(f"  ❌ Timeout fetching {url}")
@@ -73,84 +82,126 @@ def fetch_rules(url):
         print(f"  ❌ Unexpected error fetching {url}: {e}")
         return []
 
-def parse_rule(rule_text, policy):
-    """Parse rule and convert to SR format"""
-    lines = []
-    for rule in rule_text:
-        if rule:
-            lines.append(f"{rule},{policy}")
-    return lines
+def parse_rule(rule_text_lines, policy):
+    """Parse rule lines and convert to SR format"""
+    return [f"{line},{policy}" for line in rule_text_lines if line]
 
 def generate_rules():
     """Generate SR rules config"""
-    # Load sources
+    # Load sources.yaml
     print("Loading sources.yaml...")
     try:
-        with open('sources.yaml', 'r') as f:
-            config = yaml.safe_load(f)
+        with open('sources.yaml', 'r', encoding='utf-8') as f:
+            raw = f.read()
+    except FileNotFoundError:
+        print("❌ sources.yaml not found in repository root. Please make sure it exists.")
+        sys.exit(1)
     except Exception as e:
-        print(f"❌ Failed to load sources.yaml: {e}")
-        return
-    
+        print(f"❌ Failed to open sources.yaml: {e}")
+        traceback.print_exc()
+        sys.exit(1)
+
+    print("=== sources.yaml (first 1000 chars) ===")
+    print(raw[:1000])
+    print("=== end sources.yaml preview ===")
+
+    try:
+        config = yaml.safe_load(raw)
+    except Exception as e:
+        print(f"❌ Failed to parse sources.yaml: {e}")
+        traceback.print_exc()
+        sys.exit(1)
+
     if not config or 'rules' not in config:
-        print("❌ No rules found in sources.yaml")
-        return
-    
+        print("❌ No 'rules' key found in sources.yaml or file is empty")
+        sys.exit(1)
+
+    if not isinstance(config['rules'], list):
+        print("❌ 'rules' in sources.yaml is not a list")
+        sys.exit(1)
+
     print(f"Found {len(config['rules'])} rule sources to process\n")
-    
+
     rules = []
-    
-    # Get current datetime
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    # Process each rule source
+
     for i, source in enumerate(config['rules'], 1):
-        print(f"[{i}/{len(config['rules'])}] Processing {source['type']}...")
-        
+        print(f"[{i}/{len(config['rules'])}] Processing source: {source}")
         try:
-            if source['type'] == 'RULE-SET':
-                print(f"  Fetching {source['url']}...")
-                rule_lines = fetch_rules(source['url'])
-                parsed = parse_rule(rule_lines, source['policy'])
+            stype = source.get('type')
+            if stype == 'RULE-SET':
+                url = source.get('url')
+                policy = source.get('policy', 'REJECT')
+                if not url:
+                    print("  ❌ RULE-SET missing 'url', skipping")
+                    continue
+                fetched = fetch_rules(url)
+                parsed = parse_rule(fetched, policy)
                 rules.extend(parsed)
-                print(f"  ✓ Added {len(parsed)} rules\n")
-            
-            elif source['type'] == 'GEOIP':
-                rule = f"GEOIP,{source['country']},{source['policy']}"
+                print(f"  ✓ Added {len(parsed)} rules from RULE-SET\n")
+
+            elif stype == 'GEOIP':
+                country = source.get('country')
+                policy = source.get('policy', 'REJECT')
+                if not country:
+                    print("  ❌ GEOIP missing 'country', skipping")
+                    continue
+                rule = f"GEOIP,{country},{policy}"
                 rules.append(rule)
                 print(f"  ✓ Added: {rule}\n")
-            
-            elif source['type'] == 'FINAL':
-                rule = f"FINAL,{source['policy']}"
+
+            elif stype == 'FINAL':
+                policy = source.get('policy', 'REJECT')
+                rule = f"FINAL,{policy}"
                 rules.append(rule)
                 print(f"  ✓ Added: {rule}\n")
+
+            else:
+                print(f"  ❌ Unknown source type '{stype}', skipping\n")
+                continue
         except Exception as e:
-            print(f"  ❌ Error processing rule: {e}\n")
+            print(f"  ❌ Error processing rule source: {e}")
+            traceback.print_exc()
             continue
-    
+
     if not rules:
-        print("⚠️  No rules were generated!")
-        return
-    
-    # Generate output
+        print("⚠️  No rules were generated after processing all sources.")
+        # Write a diagnostic file so CI artifact shows what happened, then exit non-zero
+        output_dir = 'output'
+        os.makedirs(output_dir, exist_ok=True)
+        diag_file = os.path.join(output_dir, 'sr_rules.conf')
+        try:
+            with open(diag_file, 'w', encoding='utf-8') as f:
+                f.write(HEADER.format(datetime=now))
+                f.write("# NOTE: No rules generated. Check sources.yaml and fetch logs above.\n")
+                f.write(FOOTER)
+            print(f"⚠️  Wrote diagnostic file {diag_file} (will be empty of rules). Exiting with error for debugging.")
+        except Exception as e:
+            print(f"❌ Failed to write diagnostic file: {e}")
+        sys.exit(1)
+
+    # Write final file
     output_dir = 'output'
     os.makedirs(output_dir, exist_ok=True)
-    
     output_file = os.path.join(output_dir, 'sr_rules.conf')
-    
+
     try:
-        with open(output_file, 'w') as f:
+        with open(output_file, 'w', encoding='utf-8') as f:
             f.write(HEADER.format(datetime=now))
             f.write('\n'.join(rules))
             f.write(FOOTER)
-        
-        # Verify file size
         file_size = os.path.getsize(output_file)
         print(f"✓ Generated {output_file}")
         print(f"  Total rules: {len(rules)}")
         print(f"  File size: {file_size} bytes")
     except Exception as e:
         print(f"❌ Failed to write output file: {e}")
+        traceback.print_exc()
+        sys.exit(1)
 
 if __name__ == '__main__':
-    generate_rules()
+    try:
+        generate_rules()
+    except Exception:
+        traceback.print_exc()
+        sys.exit(1)
