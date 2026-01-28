@@ -3,9 +3,6 @@ rules:
     url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/direct.txt
     policy: DIRECT
   - type: RULE-SET
-    url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/proxy.txt
-    policy: PROXY
-  - type: RULE-SET
     url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/reject.txt
     policy: REJECT
   - type: RULE-SET
@@ -17,18 +14,6 @@ rules:
   - type: RULE-SET
     url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/icloud.txt
     policy: DIRECT
-  - type: RULE-SET
-    url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/google.txt
-    policy: PROXY
-  - type: RULE-SET
-    url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/gfw.txt
-    policy: PROXY
-  - type: RULE-SET
-    url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/tld-not-cn.txt
-    policy: PROXY
-  - type: RULE-SET
-    url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/telegramcidr.txt
-    policy: PROXY
   - type: RULE-SET
     url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/lancidr.txt
     policy: DIRECT
