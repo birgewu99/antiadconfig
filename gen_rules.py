@@ -64,12 +64,26 @@ def fetch_rules(url):
         print(f"Error fetching {url}: {e}")
         return []
 
-def parse_rule(rule_text, policy):
-    """Parse rule and convert to SR format"""
+def parse_rule(rule_lines, policy):
+    """Parse raw rules and convert to Shadowrocket format"""
     lines = []
-    for rule in rule_text:
-        if rule:
-            lines.append(f"{rule},{policy}")
+    policy_name = f"{policy}-DROP"  # 例如 REJECT -> REJECT-DROP
+    for rule in rule_lines:
+        rule = rule.strip().strip("- '\"")  # 去掉 - ' 和引号
+        if not rule or rule.startswith('#') or rule == 'payload:':
+            continue
+
+        # Clash 风格 +.xxx 转 DOMAIN-SUFFIX
+        if rule.startswith('+.'):
+            domain = rule[2:]
+            lines.append(f"DOMAIN-SUFFIX,{domain},{policy_name}")
+        # 单纯的 .xxx 或其他规则也当 DOMAIN-SUFFIX
+        elif rule.startswith('.'):
+            domain = rule[1:]
+            lines.append(f"DOMAIN-SUFFIX,{domain},{policy_name}")
+        else:
+            # 其他规则直接加上 policy
+            lines.append(f"DOMAIN-SUFFIX,{rule},{policy_name}")
     return lines
 
 def generate_rules():
