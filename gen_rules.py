@@ -35,23 +35,6 @@ localhost = 127.0.0.1
 
 IP_CIDR_KEYWORDS = ["lancidr", "cncidr", "telegramcidr"]
 
-# 强制使用 PROXY 的域名单（来自用户需求）
-FORCE_PROXY_ENTRIES = [
-    "DOMAIN,lf3-static.bytednsdoc.com",
-    "DOMAIN,v5-dy-o-abtest.zjcdn.com",
-    "DOMAIN-SUFFIX,amemv.com",
-    "DOMAIN-SUFFIX,douyincdn.com",
-    "DOMAIN-SUFFIX,douyinpic.com",
-    "DOMAIN-SUFFIX,douyinstatic.com",
-    "DOMAIN-SUFFIX,douyinvod.com",
-    "DOMAIN-SUFFIX,idouyinvod.com",
-    "DOMAIN-SUFFIX,ixigua.com",
-    "DOMAIN-SUFFIX,ixiguavideo.com",
-    "DOMAIN-SUFFIX,pstatp.com",
-    "DOMAIN-SUFFIX,snssdk.com",
-    "DOMAIN-SUFFIX,toutiao.com",
-]
-
 def fetch_rules(url):
     try:
         resp = requests.get(url, timeout=15)
@@ -92,15 +75,6 @@ def generate_rules():
     with open('sources.yaml', 'r') as f:
         config = yaml.safe_load(f)
 
-    # 预先构建一个被禁止的域名集合（来自 FORCE_PROXY_ENTRIES），用于从抓取的 RULE-SET 中移除错误条目
-    forbidden_domains = set()
-    for entry in FORCE_PROXY_ENTRIES:
-        try:
-            _, val = entry.split(',', 1)
-            forbidden_domains.add(val.strip().lower())
-        except ValueError:
-            continue
-
     for source in config.get('rules', []):
         stype = source.get('type', '').upper()
         url = source.get('url', '')
@@ -109,33 +83,8 @@ def generate_rules():
         if stype == 'RULE-SET' and url:
             print(f"Fetching {url} ...")
             rule_lines = fetch_rules(url)
-
-            # 在解析前先从原始抓取结果中过滤掉被禁止（错误）条目，避免它们被当成 DIRECT 等策略保留
-            original_count = len(rule_lines)
-            if forbidden_domains:
-                filtered = []
-                for line in rule_lines:
-                    l = line.strip().strip('"\'' ).lower()
-                    # 如果行中包含任一被禁止的域名碎片，则跳过该行
-                    if any(fd in l for fd in forbidden_domains):
-                        continue
-                    filtered.append(line)
-                removed = original_count - len(filtered)
-                rule_lines = filtered
-                if removed:
-                    print(f"  Removed {removed} blacklisted entries from {url}")
-
             is_ip = any(k in url.lower() for k in IP_CIDR_KEYWORDS)
             parsed = parse_rule(rule_lines, policy=policy, is_ip=is_ip)
-
-            # 额外一步：对解析后的规则再做一次防护，防止解析结果中仍包含被禁止域名（例如原始行格式不规范导致）
-            if forbidden_domains:
-                before = len(parsed)
-                parsed = [p for p in parsed if not any(fd in p.lower() for fd in forbidden_domains)]
-                after = len(parsed)
-                if before - after:
-                    print(f"  Removed {before-after} blacklisted parsed rules from {url}")
-
             ruleset_rules.extend(parsed)
             print(f"  Added {len(parsed)} rules from {url} ({'IP-CIDR' if is_ip else 'DOMAIN-SUFFIX'})")
 
@@ -154,81 +103,23 @@ def generate_rules():
                 proxy_rules.append(f"{stype},{policy}")
                 print(f"Added PROXY rule: {stype},{policy}")
 
-    # 应用强制 PROXY 列表：若已存在则替换 policy，否则追加
-    if FORCE_PROXY_ENTRIES:
-        # 构建现有 ruleset 的查找表 (key -> index)
-        existing = {}
-        for i, line in enumerate(ruleset_rules):
-            parts = line.split(',', 2)
-            if len(parts) >= 2:
-                key = f"{parts[0].upper()},{parts[1]}"
-                existing[key] = i
-
-        added = 0
-        replaced = 0
-        for entry in FORCE_PROXY_ENTRIES:
-            try:
-                typ, val = entry.split(',', 1)
-            except ValueError:
-                continue
-            typ = typ.strip().upper()
-            val = val.strip()
-            # 保持原始类型（DOMAIN 或 DOMAIN-SUFFIX），并设为 PROXY
-            formatted = f"{typ},{val},PROXY"
-            key = f"{typ},{val}"
-            if key in existing:
-                # 替换原有条目为 PROXY
-                ruleset_rules[existing[key]] = formatted
-                replaced += 1
-            else:
-                # 追加新条目
-                ruleset_rules.append(formatted)
-                added += 1
-        print(f"Enforced FORCE PROXY rules: added={added}, replaced={replaced}")
-
-    # 写入文件（按策略分组并排序：REJECT-200 -> PROXY -> DIRECT -> 其它 -> GEOIP -> FINAL）
+    # 写入文件
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     output_dir = "output"
     os.makedirs(output_dir, exist_ok=True)
     output_file = os.path.join(output_dir, "sr_rules.conf")
 
-    # 合并来自 RULE-SET 的规则和单独收集的 proxy_rules，然后按 policy 分桶
-    all_rules = ruleset_rules + proxy_rules
-    buckets = {}
-    for r in all_rules:
-        if ',' in r:
-            left, policy = r.rsplit(',', 1)
-            policy = policy.strip().upper()
-        else:
-            left = r
-            policy = ''
-        buckets.setdefault(policy, []).append(r)
-
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(HEADER.format(datetime=now))
-
-        # 1) REJECT-200 第一（通常是广告/过滤类）
-        if buckets.get('REJECT-200'):
-            f.write('\n'.join(buckets['REJECT-200']) + '\n')
-
-        # 2) PROXY 然后
-        if buckets.get('PROXY'):
-            f.write('\n'.join(buckets['PROXY']) + '\n')
-
-        # 3) DIRECT 接着
-        if buckets.get('DIRECT'):
-            f.write('\n'.join(buckets['DIRECT']) + '\n')
-
-        # 4) 其它策略（按策略名排序，以保证稳定性）
-        other_policies = [p for p in buckets.keys() if p not in ('REJECT-200', 'PROXY', 'DIRECT') and p]
-        for p in sorted(other_policies):
-            f.write('\n'.join(buckets[p]) + '\n')
-
-        # 5) GEOIP
+        # 1️⃣ RULE-SET
+        f.write('\n'.join(ruleset_rules) + '\n')
+        # 2️⃣ PROXY
+        if proxy_rules:
+            f.write('\n'.join(proxy_rules) + '\n')
+        # 3️⃣ GEOIP
         if geoip_rules:
             f.write('\n'.join(geoip_rules) + '\n')
-
-        # 6️⃣ FINAL
+        # 4️⃣ FINAL
         if final_rule:
             f.write(final_rule + '\n')
         f.write(FOOTER)
