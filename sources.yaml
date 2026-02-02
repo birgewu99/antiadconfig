@@ -54,6 +54,9 @@ rules:
     value: lf3-static.bytednsdoc.com
     policy: PROXY
   - type: RULE-SET
+    url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/telegramcidr.txt
+    policy: PROXY
+  - type: RULE-SET
     url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/direct.txt
     policy: DIRECT
   - type: RULE-SET
@@ -71,9 +74,6 @@ rules:
   - type: RULE-SET
     url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/cncidr.txt
     policy: DIRECT
-  - type: RULE-SET
-    url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/telegramcidr.txt
-    policy: PROXY
   - type: GEOIP
     country: CN
     policy: DIRECT
