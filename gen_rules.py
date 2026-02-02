@@ -152,23 +152,49 @@ def generate_rules():
                 added += 1
         print(f"Enforced FORCE PROXY rules: added={added}, replaced={replaced}")
 
-    # 写入文件
+    # 写入文件（按策略分组并排序：REJECT-200 -> PROXY -> DIRECT -> 其它 -> GEOIP -> FINAL）
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     output_dir = "output"
     os.makedirs(output_dir, exist_ok=True)
     output_file = os.path.join(output_dir, "sr_rules.conf")
 
+    # 合并来自 RULE-SET 的规则和单独收集的 proxy_rules，然后按 policy 分桶
+    all_rules = ruleset_rules + proxy_rules
+    buckets = {}
+    for r in all_rules:
+        if ',' in r:
+            left, policy = r.rsplit(',', 1)
+            policy = policy.strip().upper()
+        else:
+            left = r
+            policy = ''
+        buckets.setdefault(policy, []).append(r)
+
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(HEADER.format(datetime=now))
-        # 1️⃣ RULE-SET
-        f.write('\n'.join(ruleset_rules) + '\n')
-        # 2️⃣ PROXY
-        if proxy_rules:
-            f.write('\n'.join(proxy_rules) + '\n')
-        # 3️⃣ GEOIP
+
+        # 1) REJECT-200 第一（通常是广告/过滤类）
+        if buckets.get('REJECT-200'):
+            f.write('\n'.join(buckets['REJECT-200']) + '\n')
+
+        # 2) PROXY 然后
+        if buckets.get('PROXY'):
+            f.write('\n'.join(buckets['PROXY']) + '\n')
+
+        # 3) DIRECT 接着
+        if buckets.get('DIRECT'):
+            f.write('\n'.join(buckets['DIRECT']) + '\n')
+
+        # 4) 其它策略（按策略名排序，以保证稳定性）
+        other_policies = [p for p in buckets.keys() if p not in ('REJECT-200', 'PROXY', 'DIRECT') and p]
+        for p in sorted(other_policies):
+            f.write('\n'.join(buckets[p]) + '\n')
+
+        # 5) GEOIP
         if geoip_rules:
             f.write('\n'.join(geoip_rules) + '\n')
-        # 4️⃣ FINAL
+
+        # 6️⃣ FINAL
         if final_rule:
             f.write(final_rule + '\n')
         f.write(FOOTER)
