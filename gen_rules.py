@@ -35,6 +35,23 @@ localhost = 127.0.0.1
 
 IP_CIDR_KEYWORDS = ["lancidr", "cncidr", "telegramcidr"]
 
+# 强制使用 PROXY 的域名单（来自用户需求）
+FORCE_PROXY_ENTRIES = [
+    "DOMAIN,lf3-static.bytednsdoc.com",
+    "DOMAIN,v5-dy-o-abtest.zjcdn.com",
+    "DOMAIN-SUFFIX,amemv.com",
+    "DOMAIN-SUFFIX,douyincdn.com",
+    "DOMAIN-SUFFIX,douyinpic.com",
+    "DOMAIN-SUFFIX,douyinstatic.com",
+    "DOMAIN-SUFFIX,douyinvod.com",
+    "DOMAIN-SUFFIX,idouyinvod.com",
+    "DOMAIN-SUFFIX,ixigua.com",
+    "DOMAIN-SUFFIX,ixiguavideo.com",
+    "DOMAIN-SUFFIX,pstatp.com",
+    "DOMAIN-SUFFIX,snssdk.com",
+    "DOMAIN-SUFFIX,toutiao.com",
+]
+
 def fetch_rules(url):
     try:
         resp = requests.get(url, timeout=15)
@@ -102,6 +119,38 @@ def generate_rules():
             if policy == "PROXY":
                 proxy_rules.append(f"{stype},{policy}")
                 print(f"Added PROXY rule: {stype},{policy}")
+
+    # 应用强制 PROXY 列表：若已存在则替换 policy，否则追加
+    if FORCE_PROXY_ENTRIES:
+        # 构建现有 ruleset 的查找表 (key -> index)
+        existing = {}
+        for i, line in enumerate(ruleset_rules):
+            parts = line.split(',', 2)
+            if len(parts) >= 2:
+                key = f"{parts[0].upper()},{parts[1]}"
+                existing[key] = i
+
+        added = 0
+        replaced = 0
+        for entry in FORCE_PROXY_ENTRIES:
+            try:
+                typ, val = entry.split(',', 1)
+            except ValueError:
+                continue
+            typ = typ.strip().upper()
+            val = val.strip()
+            # 保持原始类型（DOMAIN 或 DOMAIN-SUFFIX），并设为 PROXY
+            formatted = f"{typ},{val},PROXY"
+            key = f"{typ},{val}"
+            if key in existing:
+                # 替换原有条目为 PROXY
+                ruleset_rules[existing[key]] = formatted
+                replaced += 1
+            else:
+                # 追加新条目
+                ruleset_rules.append(formatted)
+                added += 1
+        print(f"Enforced FORCE PROXY rules: added={added}, replaced={replaced}")
 
     # 写入文件
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
