@@ -3,9 +3,6 @@ rules:
     url: https://raw.githubusercontent.com/privacy-protection-tools/anti-AD/master/anti-ad-clash.yaml
     policy: REJECT-200
   - type: RULE-SET
-    url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/direct.txt
-    policy: DIRECT
-  - type: RULE-SET
     url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/private.txt
     policy: DIRECT
   - type: RULE-SET
