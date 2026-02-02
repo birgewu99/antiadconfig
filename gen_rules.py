@@ -63,20 +63,7 @@ def parse_rule(rule_lines, policy="REJECT-200", is_ip=False):
                 domain = rule[1:]
             else:
                 domain = rule
-
-            # special handling for domains containing "douyin":
-            # 1) if domain contains 'douyin' and policy == 'REJECT-200' => keep as is
-            # 2) if domain contains 'douyin' and policy == 'DIRECT'    => change to 'PROXY'
-            # For safety, match case-insensitive and don't mutate the original policy variable.
-            policy_to_use = policy
-            if 'douyin' in domain.lower():
-                if policy == 'DIRECT':
-                    policy_to_use = 'PROXY'
-                else:
-                    # keep policy as-is (including 'REJECT-200')
-                    policy_to_use = policy
-
-            lines.append(f"DOMAIN-SUFFIX,{domain},{policy_to_use}")
+            lines.append(f"DOMAIN-SUFFIX,{domain},{policy}")
     return lines
 
 def generate_rules():
