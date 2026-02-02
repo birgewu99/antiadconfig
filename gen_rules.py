@@ -92,6 +92,15 @@ def generate_rules():
     with open('sources.yaml', 'r') as f:
         config = yaml.safe_load(f)
 
+    # 预先构建一个被禁止的域名集合（来自 FORCE_PROXY_ENTRIES），用于从抓取的 RULE-SET 中移除错误条目
+    forbidden_domains = set()
+    for entry in FORCE_PROXY_ENTRIES:
+        try:
+            _, val = entry.split(',', 1)
+            forbidden_domains.add(val.strip().lower())
+        except ValueError:
+            continue
+
     for source in config.get('rules', []):
         stype = source.get('type', '').upper()
         url = source.get('url', '')
@@ -100,8 +109,33 @@ def generate_rules():
         if stype == 'RULE-SET' and url:
             print(f"Fetching {url} ...")
             rule_lines = fetch_rules(url)
+
+            # 在解析前先从原始抓取结果中过滤掉被禁止（错误）条目，避免它们被当成 DIRECT 等策略保留
+            original_count = len(rule_lines)
+            if forbidden_domains:
+                filtered = []
+                for line in rule_lines:
+                    l = line.strip().strip('"\'' ).lower()
+                    # 如果行中包含任一被禁止的域名碎片，则跳过该行
+                    if any(fd in l for fd in forbidden_domains):
+                        continue
+                    filtered.append(line)
+                removed = original_count - len(filtered)
+                rule_lines = filtered
+                if removed:
+                    print(f"  Removed {removed} blacklisted entries from {url}")
+
             is_ip = any(k in url.lower() for k in IP_CIDR_KEYWORDS)
             parsed = parse_rule(rule_lines, policy=policy, is_ip=is_ip)
+
+            # 额外一步：对解析后的规则再做一次防护，防止解析结果中仍包含被禁止域名（例如原始行格式不规范导致）
+            if forbidden_domains:
+                before = len(parsed)
+                parsed = [p for p in parsed if not any(fd in p.lower() for fd in forbidden_domains)]
+                after = len(parsed)
+                if before - after:
+                    print(f"  Removed {before-after} blacklisted parsed rules from {url}")
+
             ruleset_rules.extend(parsed)
             print(f"  Added {len(parsed)} rules from {url} ({'IP-CIDR' if is_ip else 'DOMAIN-SUFFIX'})")
 
