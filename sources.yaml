@@ -54,7 +54,7 @@ rules:
     value: lf3-static.bytednsdoc.com
     policy: PROXY
   - type: DOMAIN
-    value: v5-dy-o-abtest.zjcdn.com
+    value: zjcdn.com
     policy: PROXY
   - type: RULE-SET
     url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/telegramcidr.txt
