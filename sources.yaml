@@ -50,10 +50,10 @@ rules:
   - type: DOMAIN-SUFFIX
     value: bytedns.net
     policy: PROXY
-  - type: DOMAIN
+  - type: DOMAIN-SUFFIX
     value: lf3-static.bytednsdoc.com
     policy: PROXY
-  - type: DOMAIN
+  - type: DOMAIN-SUFFIX
     value: zjcdn.com
     policy: PROXY
   - type: RULE-SET
