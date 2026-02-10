@@ -21,6 +21,7 @@ private-ip-answer = true
 dns-direct-fallback-proxy = false
 udp-policy-not-supported-behaviour = REJECT
 use-local-host-item-for-proxy = false
+block-quic = all-proxy
 
 [Rule]
 """
