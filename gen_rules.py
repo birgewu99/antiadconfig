@@ -152,12 +152,19 @@ def generate_rules():
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         f.write(HEADER.format(datetime=now))
 
-        # 1) RULE-SET REJECT-200
+        # 0) RULE-SET REJECT-200
         reject_lines = ruleset_rules_by_policy.get("REJECT-200", [])
         for line in reject_lines:
             if line not in written:
                 f.write(line + '\n')
                 written.add(line)
+                
+        # 1) OTHER rules (非标准类型，如 DST-PORT) 也放在这里
+        for policy, lines in other_rules_by_policy.items():
+            for line in lines:
+                if line not in written:
+                    f.write(line + '\n')
+                    written.add(line)
 
         # 2) PROXY: explicit hardcoded PROXYs first (preserve original order), then other PROXY rules
         # explicit_domains preserves order
