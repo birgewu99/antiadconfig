@@ -2,9 +2,6 @@ rules:
   - type: RULE-SET
     url: https://raw.githubusercontent.com/privacy-protection-tools/anti-AD/master/anti-ad-clash.yaml
     policy: REJECT-200
-  - type: DST-PORT
-    value: 443
-    policy: REJECT
   - type: DOMAIN-SUFFIX
     value: amemv.com
     policy: PROXY
