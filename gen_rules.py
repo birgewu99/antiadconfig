@@ -21,7 +21,7 @@ private-ip-answer = true
 dns-direct-fallback-proxy = false
 udp-policy-not-supported-behaviour = REJECT
 use-local-host-item-for-proxy = false
-quic-block = all-proxy 
+quic-block = all
 
 [Rule]
 """
@@ -154,10 +154,10 @@ def generate_rules():
         f.write(HEADER.format(datetime=now))
 
         # ===== 在这里添加优先级最高的规则 =====
-        #quic_block_rule = "AND,((PROTOCOL,UDP),(DEST-PORT,443)),REJECT-NO-DROP"
-        #if quic_block_rule not in written:
-            #f.write(quic_block_rule + '\n')
-            #written.add(quic_block_rule)
+        quic_block_rule = "AND,((PROTOCOL,UDP),(DEST-PORT,443)),REJECT-NO-DROP"
+        if quic_block_rule not in written:
+            f.write(quic_block_rule + '\n')
+            written.add(quic_block_rule)
 
         # 0) RULE-SET REJECT-200
         reject_lines = ruleset_rules_by_policy.get("REJECT-200", [])
