@@ -75,9 +75,6 @@ rules:
     url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/lancidr.txt
     policy: DIRECT
   - type: GEOIP
-    country: CN
-    policy: DIRECT
-  - type: GEOIP
     country: PRIVATE
     policy: DIRECT
   - type: FINAL
