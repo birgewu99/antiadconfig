@@ -6,25 +6,28 @@ rules:
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/DouYin/DouYin.list
     policy: PROXY
   - type: RULE-SET
-    url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/telegramcidr.txt
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Telegram/Telegram.list
     policy: PROXY
   - type: RULE-SET
-    url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/direct.txt
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Proxy/Proxy.list
+    policy: PROXY
+  - type: RULE-SET
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Apple/Apple.list
     policy: DIRECT
   - type: RULE-SET
-    url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/private.txt
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Apple/Apple_Domain.list
     policy: DIRECT
   - type: RULE-SET
-    url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/apple.txt
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Direct/Direct.list
     policy: DIRECT
-  - type: RULE-SET
-    url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/icloud.txt
-    policy: DIRECT
-  - type: RULE-SET
-    url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/lancidr.txt
+   - type: RULE-SET
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Lan/Lan.list
     policy: DIRECT
   - type: GEOIP
     country: PRIVATE
+    policy: DIRECT
+  - type: GEOIP
+    country: CN
     policy: DIRECT
   - type: FINAL
     policy: PROXY
