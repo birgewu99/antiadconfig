@@ -48,25 +48,59 @@ def fetch_rules(url):
         return []
 
 def parse_rule(rule_lines, policy="REJECT-200", is_ip=False):
-    """解析 RULE-SET，is_ip=True 时输出 IP-CIDR"""
+    """
+    解析 RULE-SET
+    自动识别：
+    1. 纯域名列表
+    2. 纯 IP 列表
+    3. 已带规则前缀的 Clash/Shadowrocket 格式
+    """
     lines = []
+
     for rule in rule_lines:
         rule = rule.strip().strip("- '\"")
+
         if not rule or rule.startswith('#') or rule == 'payload:':
             continue
 
+        # ===== 已经带规则类型的情况 =====
+        if ',' in rule:
+            parts = rule.split(',', 1)
+            rule_type = parts[0].upper()
+
+            # 这些是标准规则类型
+            if rule_type in [
+                "DOMAIN",
+                "DOMAIN-SUFFIX",
+                "DOMAIN-KEYWORD",
+                "IP-CIDR",
+                "IP-CIDR6",
+                "GEOIP",
+                "DST-PORT",
+                "SRC-IP-CIDR",
+                "PROCESS-NAME",
+                "PROTOCOL"
+            ]:
+                lines.append(f"{rule},{policy}")
+                continue
+
+        # ===== IP 列表（telegramcidr 那种）=====
         if is_ip:
             lines.append(f"IP-CIDR,{rule},{policy}")
+            continue
+
+        # ===== 纯域名列表（loyalsoldier 那种）=====
+        if rule.startswith('+.'):
+            domain = rule[2:]
+        elif rule.startswith('.'):
+            domain = rule[1:]
         else:
-            # DOMAIN-SUFFIX
-            if rule.startswith('+.'):
-                domain = rule[2:]
-            elif rule.startswith('.'):
-                domain = rule[1:]
-            else:
-                domain = rule
-            lines.append(f"DOMAIN-SUFFIX,{domain},{policy}")
+            domain = rule
+
+        lines.append(f"DOMAIN-SUFFIX,{domain},{policy}")
+
     return lines
+
 
 def generate_rules():
     # containers
