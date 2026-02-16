@@ -23,7 +23,7 @@ rules:
   - type: RULE-SET
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Direct/Direct.list
     policy: DIRECT
-   - type: RULE-SET
+  - type: RULE-SET
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Lan/Lan.list
     policy: DIRECT
   - type: GEOIP
