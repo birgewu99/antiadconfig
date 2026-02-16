@@ -18,6 +18,9 @@ rules:
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Apple/Apple_Domain.list
     policy: DIRECT
   - type: RULE-SET
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/WeChat/WeChat.list
+    policy: DIRECT
+  - type: RULE-SET
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Direct/Direct.list
     policy: DIRECT
    - type: RULE-SET
