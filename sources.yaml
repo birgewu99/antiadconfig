@@ -2,60 +2,9 @@ rules:
   - type: RULE-SET
     url: https://raw.githubusercontent.com/privacy-protection-tools/anti-AD/master/anti-ad-clash.yaml
     policy: REJECT-200
-  - type: DOMAIN-SUFFIX
-    value: amemv.com
-    policy: PROXY
-  - type: DOMAIN-SUFFIX
-    value: snssdk.com
-    policy: PROXY
-  - type: DOMAIN-SUFFIX
-    value: pstatp.com
-    policy: PROXY
-  - type: DOMAIN-SUFFIX
-    value: douyinvod.com
-    policy: PROXY
-  - type: DOMAIN-SUFFIX
-    value: idouyinvod.com
-    policy: PROXY
-  - type: DOMAIN-SUFFIX
-    value: douyincdn.com
-    policy: PROXY
-  - type: DOMAIN-SUFFIX
-    value: douyinstatic.com
-    policy: PROXY
-  - type: DOMAIN-SUFFIX
-    value: douyinpic.com
-    policy: PROXY
-  - type: DOMAIN-SUFFIX
-    value: douyin.com
-    policy: PROXY
-  - type: DOMAIN-SUFFIX
-    value: iesdouyin.com
-    policy: PROXY
-  - type: DOMAIN-SUFFIX
-    value: toutiao.com
-    policy: PROXY
-  - type: DOMAIN-SUFFIX
-    value: ixigua.com
-    policy: PROXY
-  - type: DOMAIN-SUFFIX
-    value: ixiguavideo.com
-    policy: PROXY
-  - type: DOMAIN-SUFFIX
-    value: byteimg.com
-    policy: PROXY
-  - type: DOMAIN-SUFFIX
-    value: bytedance.com
-    policy: PROXY
-  - type: DOMAIN-SUFFIX
-    value: bytedns.net
-    policy: PROXY
-  - type: DOMAIN-SUFFIX
-    value: lf3-static.bytednsdoc.com
-    policy: PROXY
-  - type: DOMAIN-SUFFIX
-    value: zjcdn.com
-    policy: PROXY
+  - type: RULE-SET
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/DouYin/DouYin.list
+    prolicy: PROXY
   - type: RULE-SET
     url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/telegramcidr.txt
     policy: PROXY
