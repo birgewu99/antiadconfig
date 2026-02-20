@@ -6,6 +6,9 @@ rules:
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/DouYin/DouYin.list
     policy: PROXY
   - type: RULE-SET
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/OpenAI/OpenAI.list
+    policy: PROXY
+  - type: RULE-SET
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Telegram/Telegram.list
     policy: PROXY
   - type: RULE-SET
