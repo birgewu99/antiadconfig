@@ -135,21 +135,27 @@ def generate_rules():
             is_ip = any(k in url.lower() for k in IP_CIDR_KEYWORDS)
             parsed = parse_rule(rule_lines, policy=policy, is_ip=is_ip)
 
-            # filter parsed rules that conflict with hardcoded domains (only for domain rules)
+            # ===== 第二层去重：硬编码优先覆盖 RULE-SET =====
             filtered = []
             for line in parsed:
-                if line.startswith("DOMAIN-SUFFIX,"):
+                # 处理 DOMAIN-SUFFIX, DOMAIN, DOMAIN-KEYWORD, IP-CIDR
+                if line.startswith(("DOMAIN-SUFFIX,", "DOMAIN,", "DOMAIN-KEYWORD,", "IP-CIDR,")):
                     parts = line.split(',', 2)
-                    domain = parts[1].lower()
+                    value = parts[1].lower()
                     skip = False
                     for hc in hardcoded_values:
-                        # if parsed domain is equal to or a subdomain of a hardcoded domain, skip
-                        if domain == hc or domain.endswith('.' + hc):
+                        # DOMAIN 系列：等于或子域跳过
+                        if parts[0].startswith("DOMAIN") and (value == hc or value.endswith('.' + hc)):
+                            skip = True
+                            break
+                        # IP-CIDR：完全匹配跳过
+                        elif parts[0] == "IP-CIDR" and value == hc:
                             skip = True
                             break
                     if skip:
                         continue
                 filtered.append(line)
+
             ruleset_rules_by_policy[policy].extend(filtered)
             print(f"  Added {len(filtered)} rules from {url} ({'IP-CIDR' if is_ip else 'DOMAIN-SUFFIX'}) with policy {policy}")
         elif stype == 'GEOIP':
@@ -160,34 +166,27 @@ def generate_rules():
             final_rule = f"FINAL,{policy}" if policy else "FINAL,PROXY"
             print(f"Added FINAL rule: {final_rule}")
         else:
-            # other types: if they have a value treat similarly
             value = source.get('value')
             if value:
                 other_line = f"{stype},{value},{policy}"
                 other_rules_by_policy[policy].append(other_line)
                 print(f"Added other rule with value: {other_line}")
             else:
-                # fallback: keep type as rule with policy
                 other_line = f"{stype},{policy}"
                 other_rules_by_policy[policy].append(other_line)
                 print(f"Added other rule: {other_line}")
 
     # Now assemble output in order:
-    # 1) RULE-SET with policy REJECT-200
-    # 2) PROXY (explicit hardcoded PROXY entries first in sources.yaml order, then other PROXY rules)
-    # 3) DIRECT
-    # 4) GEOIP
-    # 5) FINAL
     output_dir = "output"
     os.makedirs(output_dir, exist_ok=True)
     output_file = os.path.join(output_dir, "sr_rules.conf")
-    written = set()  # dedupe lines
+    written = set()  # 全局写入去重
 
     with open(output_file, 'w', encoding='utf-8') as f:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         f.write(HEADER.format(datetime=now))
 
-        # ===== 在这里添加优先级最高的规则 =====
+        # ===== 优先级最高规则 =====
         quic_block_rule = "AND,((PROTOCOL,UDP),(DEST-PORT,443)),REJECT-NO-DROP"
         if quic_block_rule not in written:
             f.write(quic_block_rule + '\n')
@@ -200,15 +199,14 @@ def generate_rules():
                 f.write(line + '\n')
                 written.add(line)
                 
-        # 1) OTHER rules (非标准类型，如 DST-PORT) 也放在这里
+        # 1) OTHER rules
         for policy, lines in other_rules_by_policy.items():
             for line in lines:
                 if line not in written:
                     f.write(line + '\n')
                     written.add(line)
 
-        # 2) PROXY: explicit hardcoded PROXYs first (preserve original order), then other PROXY rules
-        # explicit_domains preserves order
+        # 2) PROXY: explicit hardcoded PROXYs first
         for entry_type, value, policy in explicit_domains:
             if policy == "PROXY":
                 line = f"{entry_type},{value},{policy}"
@@ -216,8 +214,6 @@ def generate_rules():
                     f.write(line + '\n')
                     written.add(line)
 
-        # then other PROXY rules from explicit_by_policy and ruleset_rules_by_policy and other_rules
-        # explicit_by_policy may already contain the explicit entries we wrote; but dedupe will prevent duplicates
         for line in explicit_by_policy.get("PROXY", []):
             if line not in written:
                 f.write(line + '\n')
@@ -233,7 +229,7 @@ def generate_rules():
                 f.write(line + '\n')
                 written.add(line)
 
-        # 3) DIRECT: include explicit DIRECTs, other DIRECTs, RULE-SET DIRECT
+        # 3) DIRECT
         for line in explicit_by_policy.get("DIRECT", []):
             if line not in written:
                 f.write(line + '\n')
